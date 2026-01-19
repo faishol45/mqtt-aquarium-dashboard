@@ -41,6 +41,7 @@
   const rawEl = document.getElementById("raw");
   const turbEl = document.getElementById("turbidity");
   const relayEl = document.getElementById("relay");
+  const phEl = document.getElementById("ph");
   const statusEl = document.getElementById("status");
 
   client.on("connect", () => {
@@ -53,6 +54,7 @@
     rawEl.textContent = data.raw;
     turbEl.textContent = data.turbidity;
     relayEl.textContent = data.relay;
+    phEl.textContent = data.ph ?? "--";
   });
 
   client.on("error", () => {
@@ -62,4 +64,5 @@
 
 </body>
 </html>
+
 
