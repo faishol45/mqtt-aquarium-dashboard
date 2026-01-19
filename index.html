@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard Kekeruhan Air</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <style>
+    body {
+      font-family: Arial;
+      background: #06112f;
+      color: white;
+      text-align: center;
+      padding: 40px;
+    }
+    .card {
+      background: #1a2448;
+      padding: 30px;
+      border-radius: 15px;
+      display: inline-block;
+    }
+    h1 { color: #3fd4d4; }
+    p { font-size: 22px; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h1>Monitoring Kekeruhan Air</h1>
+  <p>Raw ADC: <span id="raw">--</span></p>
+  <p>Turbidity: <span id="turbidity">--</span> NTU</p>
+  <p>Relay: <span id="relay">--</span></p>
+  <p id="status">Connecting...</p>
+</div>
+
+<script>
+  const client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt");
+
+  const topic = "polinela/iot/24782047/turbidity";
+
+  const rawEl = document.getElementById("raw");
+  const turbEl = document.getElementById("turbidity");
+  const relayEl = document.getElementById("relay");
+  const statusEl = document.getElementById("status");
+
+  client.on("connect", () => {
+    statusEl.textContent = "Connected ✅";
+    client.subscribe(topic);
+  });
+
+  client.on("message", (topic, message) => {
+    const data = JSON.parse(message.toString());
+    rawEl.textContent = data.raw;
+    turbEl.textContent = data.turbidity;
+    relayEl.textContent = data.relay;
+  });
+
+  client.on("error", () => {
+    statusEl.textContent = "Connection Error ❌";
+  });
+</script>
+
+</body>
+</html>
