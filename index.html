@@ -187,11 +187,12 @@ const saved = localStorage.getItem("air_setting_last");
 if (saved) {
   try {
     const s = JSON.parse(saved);
-    phMin.value   = s.phMin;
-    phMax.value   = s.phMax;
-    turbMax.value = s.turbMax;
-    h1.value      = s.h1;
-    h2.value      = s.h2;
+    phMin.value   = s.phMin   ?? "";
+    phMax.value   = s.phMax   ?? "";
+    turbMax.value = s.turbMax ?? "";
+    h1.value      = s.h1      ?? "";
+    h2.value      = s.h2      ?? "";
+
   } catch {}
 }
 
@@ -238,15 +239,7 @@ client.on("message", (topic, message) => {
     localStorage.setItem(LS_KEY, JSON.stringify(s));
   }
 
-  if (
-  s.phMin != null &&
-  s.phMax != null &&
-  s.turbMax != null &&
-  s.h1 != null &&
-  s.h2 != null
-) {
-  localStorage.setItem("air_setting_last", JSON.stringify(s));
-}
+  
 
 });
 
@@ -269,3 +262,4 @@ function kirim() {
 
 </body>
 </html>
+
