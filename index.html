@@ -177,78 +177,82 @@ const client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt", {
 
 const topicData = "air/data";
 const topicSet  = "air/setting";
+const LS_KEY    = "air_setting_last";
 
 let lastData = Date.now();
+
+/* ===== LOAD LOCALSTORAGE SAAT AWAL ===== */
+const saved = localStorage.getItem(LS_KEY);
+if (saved) {
+  try {
+    const s = JSON.parse(saved);
+    phMin.value   = s.phMin;
+    phMax.value   = s.phMax;
+    turbMax.value = s.turbMax;
+    h1.value      = s.h1;
+    h2.value      = s.h2;
+  } catch {}
+}
 
 /* ===== MQTT CONNECT ===== */
 client.on("connect", () => {
   conn.innerText = "🟢 MQTT Connected";
   client.subscribe(topicData);
   client.subscribe(topicSet);
-  client.subscribe("air/setting");
-
 });
 
 /* ===== MQTT MESSAGE ===== */
 client.on("message", (topic, message) => {
 
-  /* ===== DATA SENSOR ===== */
+  /* === DATA SENSOR === */
   if (topic === topicData) {
     let d;
     try { d = JSON.parse(message.toString()); } catch { return; }
 
     lastData = Date.now();
-
     ph.innerText    = d.ph?.toFixed(2) ?? "--";
     turb.innerText  = d.turb ?? "--";
     level.innerText = d.level ?? "--";
 
     r1.innerText = d.r1 ? "ON" : "OFF";
     r2.innerText = d.r2 ? "ON" : "OFF";
-
     r1.className = "status " + (d.r1 ? "on" : "off");
     r2.className = "status " + (d.r2 ? "on" : "off");
   }
 
-  /* ===== SETTING (RETAINED) ===== */
-  else if (topic === topicSet) {
+  /* === SETTING (RETAINED) === */
+  if (topic === topicSet) {
     let s;
     try { s = JSON.parse(message.toString()); } catch { return; }
 
-    if (s.phMin   !== undefined) phMin.value   = s.phMin;
-    if (s.phMax   !== undefined) phMax.value   = s.phMax;
-    if (s.turbMax !== undefined) turbMax.value = s.turbMax;
-    if (s.h1      !== undefined) h1.value      = s.h1;
-    if (s.h2      !== undefined) h2.value      = s.h2;
+    phMin.value   = s.phMin;
+    phMax.value   = s.phMax;
+    turbMax.value = s.turbMax;
+    h1.value      = s.h1;
+    h2.value      = s.h2;
+
+    // 🔥 sinkron ke localStorage
+    localStorage.setItem(LS_KEY, JSON.stringify(s));
   }
 });
 
-
-
-/* ===== DATA TIMEOUT CHECK ===== */
-setInterval(() => {
-  if (Date.now() - lastData > 4000) {
-    conn.innerText = "terhubung";
-  }
-}, 1000);
-
-/* ===== KIRIM SETTING ===== */
+/* ===== SIMPAN SETTING ===== */
 function kirim() {
-  client.publish(
-    topicSet,
-    JSON.stringify({
-      phMin:  parseFloat(phMin.value),
-      phMax:  parseFloat(phMax.value),
-      turbMax: parseInt(turbMax.value),
-      h1: parseInt(h1.value),
-      h2: parseInt(h2.value)
-    }),
-    { retain: true }   // 🔥 KUNCI UTAMA
-  );
-}
+  const setting = {
+    phMin:   parseFloat(phMin.value),
+    phMax:   parseFloat(phMax.value),
+    turbMax: parseInt(turbMax.value),
+    h1:      parseInt(h1.value),
+    h2:      parseInt(h2.value)
+  };
 
+  localStorage.setItem(LS_KEY, JSON.stringify(setting));
+  client.publish(topicSet, JSON.stringify(setting), { retain: true });
+}
 </script>
+
 
 
 </body>
 </html>
+
