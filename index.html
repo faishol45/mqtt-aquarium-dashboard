@@ -182,7 +182,8 @@ const LS_KEY    = "air_setting_last";
 let lastData = Date.now();
 
 /* ===== LOAD LOCALSTORAGE SAAT AWAL ===== */
-const saved = localStorage.getItem(LS_KEY);
+
+const saved = localStorage.getItem("air_setting_last");
 if (saved) {
   try {
     const s = JSON.parse(saved);
@@ -193,6 +194,7 @@ if (saved) {
     h2.value      = s.h2;
   } catch {}
 }
+
 
 /* ===== MQTT CONNECT ===== */
 client.on("connect", () => {
@@ -225,15 +227,27 @@ client.on("message", (topic, message) => {
     let s;
     try { s = JSON.parse(message.toString()); } catch { return; }
 
-    phMin.value   = s.phMin;
-    phMax.value   = s.phMax;
-    turbMax.value = s.turbMax;
-    h1.value      = s.h1;
-    h2.value      = s.h2;
+    if (s.phMin   != null) phMin.value   = s.phMin;
+    if (s.phMax   != null) phMax.value   = s.phMax;
+    if (s.turbMax != null) turbMax.value = s.turbMax;
+    if (s.h1      != null) h1.value      = s.h1;
+    if (s.h2      != null) h2.value      = s.h2;
+
 
     // 🔥 sinkron ke localStorage
     localStorage.setItem(LS_KEY, JSON.stringify(s));
   }
+
+  if (
+  s.phMin != null &&
+  s.phMax != null &&
+  s.turbMax != null &&
+  s.h1 != null &&
+  s.h2 != null
+) {
+  localStorage.setItem("air_setting_last", JSON.stringify(s));
+}
+
 });
 
 /* ===== SIMPAN SETTING ===== */
@@ -255,4 +269,3 @@ function kirim() {
 
 </body>
 </html>
-
