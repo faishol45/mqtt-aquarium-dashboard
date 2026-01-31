@@ -1,173 +1,3 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-<meta charset="UTF-8">
-<title>Dashboard Monitoring Air</title>
-
-<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-
-<style>
-:root {
-  --bg: #071426;
-  --card: #0f1f3d;
-  --accent: #36e2c2;
-  --danger: #ff5c5c;
-  --warning: #f1c40f;
-  --ok: #2ecc71;
-  --text: #eaf2ff;
-}
-
-* { box-sizing: border-box; }
-
-body {
-  margin: 0;
-  font-family: "Segoe UI", Arial, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-}
-
-header {
-  padding: 20px;
-  text-align: center;
-  background: linear-gradient(90deg, #0f2a5f, #0b3d91);
-}
-
-header h1 {
-  margin: 0;
-  color: var(--accent);
-}
-
-.container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px,1fr));
-  gap: 20px;
-  padding: 25px;
-}
-
-.card {
-  background: var(--card);
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.3);
-}
-
-.card h2 {
-  margin-top: 0;
-  color: var(--accent);
-  font-size: 20px;
-}
-
-.value {
-  font-size: 32px;
-  font-weight: bold;
-}
-
-.label {
-  opacity: .7;
-}
-
-.status {
-  font-size: 18px;
-  font-weight: bold;
-  padding: 6px 12px;
-  border-radius: 10px;
-  display: inline-block;
-}
-
-.on { background: var(--ok); color: #000; }
-.off { background: var(--danger); }
-.warn { background: var(--warning); color: #000; }
-
-input {
-  width: 100%;
-  padding: 10px;
-  border-radius: 10px;
-  border: none;
-  margin-top: 6px;
-  margin-bottom: 12px;
-  font-size: 16px;
-}
-
-button {
-  width: 100%;
-  padding: 12px;
-  border-radius: 12px;
-  border: none;
-  background: var(--accent);
-  color: #000;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-button:hover {
-  opacity: .85;
-}
-
-.footer {
-  text-align: center;
-  padding: 15px;
-  opacity: .5;
-}
-</style>
-</head>
-
-<body>
-
-<header>
-  <h1>🌊 Dashboard Monitoring Kualitas Air</h1>
-  <p id="conn">Menghubungkan MQTT...</p>
-</header>
-
-<div class="container">
-
-  <!-- MONITORING -->
-  <div class="card">
-    <h2>📊 Data Sensor</h2>
-    <p class="label">pH Air</p>
-    <div class="value" id="ph">--</div>
-
-    <p class="label">Kekeruhan (NTU)</p>
-    <div class="value" id="turb">--</div>
-
-    <p class="label">Ketinggian Air (cm)</p>
-    <div class="value" id="level">--</div>
-  </div>
-
-  <!-- STATUS -->
-  <div class="card">
-    <h2>⚙ Status Sistem</h2>
-    <p>Relay 1: <span id="r1" class="status off">OFF</span></p>
-    <p>Relay 2: <span id="r2" class="status off">OFF</span></p>
-  </div>
-
-  <!-- SETTING -->
-  <div class="card">
-    <h2>🧪 Batas Kualitas Air</h2>
-    pH Minimum
-    <input id="phMin" type="number" step="0.1">
-    pH Maksimum
-    <input id="phMax" type="number" step="0.1">
-    Kekeruhan Maks (NTU)
-    <input id="turbMax" type="number">
-  </div>
-
-  <div class="card">
-    <h2>📏 Batas Ketinggian Air</h2>
-    H1 (cm – relay 1 off, relay 2 on)
-    <input id="h1" type="number">
-    H2 (cm – relay 2 off)
-    <input id="h2" type="number">
-
-    <button onclick="kirim()">SIMPAN PENGATURAN</button>
-  </div>
-
-</div>
-
-<div class="footer">
-  IoT Water Monitoring © 2026
-</div>
-
 <script>
 const client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt", {
   keepalive: 60,
@@ -177,94 +7,66 @@ const client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt", {
 
 const topicData = "air/data";
 const topicSet  = "air/setting";
+const LS_KEY    = "air_setting_last";
 
 let lastData = Date.now();
+
+/* ===== LOAD LOCALSTORAGE SAAT AWAL ===== */
+const saved = localStorage.getItem(LS_KEY);
+if (saved) {
+  try {
+    const s = JSON.parse(saved);
+    phMin.value   = s.phMin;
+    phMax.value   = s.phMax;
+    turbMax.value = s.turbMax;
+    h1.value      = s.h1;
+    h2.value      = s.h2;
+  } catch {}
+}
 
 /* ===== MQTT CONNECT ===== */
 client.on("connect", () => {
   conn.innerText = "🟢 MQTT Connected";
   client.subscribe(topicData);
   client.subscribe(topicSet);
-  client.subscribe("air/setting");
-
 });
 
 /* ===== MQTT MESSAGE ===== */
 client.on("message", (topic, message) => {
 
-  /* ===== DATA SENSOR ===== */
+  /* === DATA SENSOR === */
   if (topic === topicData) {
     let d;
     try { d = JSON.parse(message.toString()); } catch { return; }
 
     lastData = Date.now();
-
     ph.innerText    = d.ph?.toFixed(2) ?? "--";
     turb.innerText  = d.turb ?? "--";
     level.innerText = d.level ?? "--";
 
     r1.innerText = d.r1 ? "ON" : "OFF";
     r2.innerText = d.r2 ? "ON" : "OFF";
-
     r1.className = "status " + (d.r1 ? "on" : "off");
     r2.className = "status " + (d.r2 ? "on" : "off");
   }
 
-  /* ===== SETTING (RETAINED) ===== */
-  else if (topic === topicSet) {
+  /* === SETTING (RETAINED) === */
+  if (topic === topicSet) {
     let s;
     try { s = JSON.parse(message.toString()); } catch { return; }
 
-    if (s.phMin   !== undefined) phMin.value   = s.phMin;
-    if (s.phMax   !== undefined) phMax.value   = s.phMax;
-    if (s.turbMax !== undefined) turbMax.value = s.turbMax;
-    if (s.h1      !== undefined) h1.value      = s.h1;
-    if (s.h2      !== undefined) h2.value      = s.h2;
+    phMin.value   = s.phMin;
+    phMax.value   = s.phMax;
+    turbMax.value = s.turbMax;
+    h1.value      = s.h1;
+    h2.value      = s.h2;
+
+    // 🔥 sinkron ke localStorage
+    localStorage.setItem(LS_KEY, JSON.stringify(s));
   }
 });
 
-
-
-/* ===== DATA TIMEOUT CHECK ===== */
-setInterval(() => {
-  if (Date.now() - lastData > 4000) {
-    conn.innerText = "terhubung";
-  }
-}, 1000);
-
-/* ===== KIRIM SETTING ===== */
-function kirim() {
-  client.publish(
-    topicSet,
-    JSON.stringify({
-      phMin:  parseFloat(phMin.value),
-      phMax:  parseFloat(phMax.value),
-      turbMax: parseInt(turbMax.value),
-      h1: parseInt(h1.value),
-      h2: parseInt(h2.value)
-    }),
-    { retain: true }   // 🔥 KUNCI UTAMA
-  );
-}
-
-const LS_KEY = "air_setting_last";
-
-function loadLastSetting() {
-  const saved = localStorage.getItem(LS_KEY);
-  if (!saved) return;   // kalau belum pernah set, biarkan kosong
-
-  let s;
-  try { s = JSON.parse(saved); } catch { return; }
-
-  phMin.value   = s.phMin;
-  phMax.value   = s.phMax;
-  turbMax.value = s.turbMax;
-  h1.value      = s.h1;
-  h2.value      = s.h2;
-}
-
-loadLastSetting();   // 🔥 INI KUNCI
-
+/* ===== SIMPAN SETTING ===== */
 function kirim() {
   const setting = {
     phMin:   parseFloat(phMin.value),
@@ -274,35 +76,7 @@ function kirim() {
     h2:      parseInt(h2.value)
   };
 
-  // 🔥 SIMPAN SETTING TERAKHIR
   localStorage.setItem(LS_KEY, JSON.stringify(setting));
-
-  // 🔄 KIRIM KE ESP (sinkron)
   client.publish(topicSet, JSON.stringify(setting), { retain: true });
 }
-
-if (topic === topicSet) {
-  let s;
-  try { s = JSON.parse(message.toString()); } catch { return; }
-
-  phMin.value   = s.phMin   ?? phMin.value;
-  phMax.value   = s.phMax   ?? phMax.value;
-  turbMax.value = s.turbMax ?? turbMax.value;
-  h1.value      = s.h1      ?? h1.value;
-  h2.value      = s.h2      ?? h2.value;
-
-  // 🔥 UPDATE LAST SETTING
-  localStorage.setItem(LS_KEY, JSON.stringify({
-    phMin: phMin.value,
-    phMax: phMax.value,
-    turbMax: turbMax.value,
-    h1: h1.value,
-    h2: h2.value
-  }));
-}
-
 </script>
-
-
-</body>
-</html>
