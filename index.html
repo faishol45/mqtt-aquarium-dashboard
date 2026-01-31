@@ -234,16 +234,19 @@ setInterval(() => {
 
 /* ===== KIRIM SETTING ===== */
 function kirim() {
-  const payload = JSON.stringify({
-    phMin:   parseFloat(phMin.value),
-    phMax:   parseFloat(phMax.value),
-    turbMax: parseInt(turbMax.value),
-    h1:      parseInt(h1.value),
-    h2:      parseInt(h2.value)
-  });
-
-  client.publish(topicSet, payload, { retain: true });
+  client.publish(
+    topicSet,
+    JSON.stringify({
+      phMin:  parseFloat(phMin.value),
+      phMax:  parseFloat(phMax.value),
+      turbMax: parseInt(turbMax.value),
+      h1: parseInt(h1.value),
+      h2: parseInt(h2.value)
+    }),
+    { retain: true }   // 🔥 KUNCI UTAMA
+  );
 }
+
 </script>
 
 
