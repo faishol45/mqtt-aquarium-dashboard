@@ -155,9 +155,9 @@ button:hover {
   <div class="card">
     <h2>📏 Batas Ketinggian Air</h2>
     H1 (cm – relay 1 off, relay 2 on)
-    <input id="h1" type="number" value="10">
+    <input id="h1" type="number">
     H2 (cm – relay 2 off)
-    <input id="h2" type="number" value="25">
+    <input id="h2" type="number">
 
     <button onclick="kirim()">SIMPAN PENGATURAN</button>
   </div>
@@ -245,6 +245,60 @@ function kirim() {
     }),
     { retain: true }   // 🔥 KUNCI UTAMA
   );
+}
+
+const LS_KEY = "air_setting_last";
+
+function loadLastSetting() {
+  const saved = localStorage.getItem(LS_KEY);
+  if (!saved) return;   // kalau belum pernah set, biarkan kosong
+
+  let s;
+  try { s = JSON.parse(saved); } catch { return; }
+
+  phMin.value   = s.phMin;
+  phMax.value   = s.phMax;
+  turbMax.value = s.turbMax;
+  h1.value      = s.h1;
+  h2.value      = s.h2;
+}
+
+loadLastSetting();   // 🔥 INI KUNCI
+
+function kirim() {
+  const setting = {
+    phMin:   parseFloat(phMin.value),
+    phMax:   parseFloat(phMax.value),
+    turbMax: parseInt(turbMax.value),
+    h1:      parseInt(h1.value),
+    h2:      parseInt(h2.value)
+  };
+
+  // 🔥 SIMPAN SETTING TERAKHIR
+  localStorage.setItem(LS_KEY, JSON.stringify(setting));
+
+  // 🔄 KIRIM KE ESP (sinkron)
+  client.publish(topicSet, JSON.stringify(setting), { retain: true });
+}
+
+if (topic === topicSet) {
+  let s;
+  try { s = JSON.parse(message.toString()); } catch { return; }
+
+  phMin.value   = s.phMin   ?? phMin.value;
+  phMax.value   = s.phMax   ?? phMax.value;
+  turbMax.value = s.turbMax ?? turbMax.value;
+  h1.value      = s.h1      ?? h1.value;
+  h2.value      = s.h2      ?? h2.value;
+
+  // 🔥 UPDATE LAST SETTING
+  localStorage.setItem(LS_KEY, JSON.stringify({
+    phMin: phMin.value,
+    phMax: phMax.value,
+    turbMax: turbMax.value,
+    h1: h1.value,
+    h2: h2.value
+  }));
 }
 
 </script>
