@@ -1,68 +1,251 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <title>Dashboard Kekeruhan Air</title>
-  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-  <style>
-    body {
-      font-family: Arial;
-      background: #06112f;
-      color: white;
-      text-align: center;
-      padding: 40px;
-    }
-    .card {
-      background: #1a2448;
-      padding: 30px;
-      border-radius: 15px;
-      display: inline-block;
-    }
-    h1 { color: #3fd4d4; }
-    p { font-size: 22px; }
-  </style>
+<meta charset="UTF-8">
+<title>Dashboard Monitoring Air</title>
+
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+<style>
+:root {
+  --bg: #071426;
+  --card: #0f1f3d;
+  --accent: #36e2c2;
+  --danger: #ff5c5c;
+  --warning: #f1c40f;
+  --ok: #2ecc71;
+  --text: #eaf2ff;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+header {
+  padding: 20px;
+  text-align: center;
+  background: linear-gradient(90deg, #0f2a5f, #0b3d91);
+}
+
+header h1 {
+  margin: 0;
+  color: var(--accent);
+}
+
+.container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px,1fr));
+  gap: 20px;
+  padding: 25px;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.3);
+}
+
+.card h2 {
+  margin-top: 0;
+  color: var(--accent);
+  font-size: 20px;
+}
+
+.value {
+  font-size: 32px;
+  font-weight: bold;
+}
+
+.label {
+  opacity: .7;
+}
+
+.status {
+  font-size: 18px;
+  font-weight: bold;
+  padding: 6px 12px;
+  border-radius: 10px;
+  display: inline-block;
+}
+
+.on { background: var(--ok); color: #000; }
+.off { background: var(--danger); }
+.warn { background: var(--warning); color: #000; }
+
+input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  margin-top: 6px;
+  margin-bottom: 12px;
+  font-size: 16px;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: none;
+  background: var(--accent);
+  color: #000;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:hover {
+  opacity: .85;
+}
+
+.footer {
+  text-align: center;
+  padding: 15px;
+  opacity: .5;
+}
+</style>
 </head>
+
 <body>
 
-<div class="card">
-  <h1>Monitoring Kekeruhan Air</h1>
-  <p>Raw ADC: <span id="raw">--</span></p>
-  <p>Turbidity: <span id="turbidity">--</span> NTU</p>
-  <p>Relay: <span id="relay">--</span></p>
-  <p>pH: <span id="ph">--</span></p>
-  <p id="status">Connecting...</p>
+<header>
+  <h1>🌊 Dashboard Monitoring Kualitas Air</h1>
+  <p id="conn">Menghubungkan MQTT...</p>
+</header>
+
+<div class="container">
+
+  <!-- MONITORING -->
+  <div class="card">
+    <h2>📊 Data Sensor</h2>
+    <p class="label">pH Air</p>
+    <div class="value" id="ph">--</div>
+
+    <p class="label">Kekeruhan (NTU)</p>
+    <div class="value" id="turb">--</div>
+
+    <p class="label">Ketinggian Air (cm)</p>
+    <div class="value" id="level">--</div>
+  </div>
+
+  <!-- STATUS -->
+  <div class="card">
+    <h2>⚙ Status Sistem</h2>
+    <p>Relay 1: <span id="r1" class="status off">OFF</span></p>
+    <p>Relay 2: <span id="r2" class="status off">OFF</span></p>
+  </div>
+
+  <!-- SETTING -->
+  <div class="card">
+    <h2>🧪 Batas Kualitas Air</h2>
+    pH Minimum
+    <input id="phMin" type="number" step="0.1" value="6.5">
+    pH Maksimum
+    <input id="phMax" type="number" step="0.1" value="8.5">
+    Kekeruhan Maks (NTU)
+    <input id="turbMax" type="number" value="50">
+  </div>
+
+  <div class="card">
+    <h2>📏 Batas Ketinggian Air</h2>
+    H1 (cm – relay 1 off, relay 2 on)
+    <input id="h1" type="number" value="10">
+    H2 (cm – relay 2 off)
+    <input id="h2" type="number" value="25">
+
+    <button onclick="kirim()">SIMPAN PENGATURAN</button>
+  </div>
+
+</div>
+
+<div class="footer">
+  IoT Water Monitoring © 2026
 </div>
 
 <script>
-  const client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt");
+const client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt", {
+  keepalive: 60,
+  reconnectPeriod: 2000,
+  clean: true
+});
 
-  const topic = "polinela/iot/24782047/turbidity";
+const topicData = "air/data";
+const topicSet  = "air/setting";
 
-  const rawEl = document.getElementById("raw");
-  const turbEl = document.getElementById("turbidity");
-  const relayEl = document.getElementById("relay");
-  const phEl = document.getElementById("ph");
-  const statusEl = document.getElementById("status");
+let lastData = Date.now();
 
-  client.on("connect", () => {
-    statusEl.textContent = "Connected ✅";
-    client.subscribe(topic);
+/* ===== MQTT CONNECT ===== */
+client.on("connect", () => {
+  conn.innerText = "🟢 MQTT Connected";
+  client.subscribe(topicData);
+  client.subscribe(topicSet);
+  client.subscribe("air/setting");
+
+});
+
+/* ===== MQTT MESSAGE ===== */
+client.on("message", (topic, message) => {
+
+  /* ===== DATA SENSOR ===== */
+  if (topic === topicData) {
+    let d;
+    try { d = JSON.parse(message.toString()); } catch { return; }
+
+    lastData = Date.now();
+
+    ph.innerText    = d.ph?.toFixed(2) ?? "--";
+    turb.innerText  = d.turb ?? "--";
+    level.innerText = d.level ?? "--";
+
+    r1.innerText = d.r1 ? "ON" : "OFF";
+    r2.innerText = d.r2 ? "ON" : "OFF";
+
+    r1.className = "status " + (d.r1 ? "on" : "off");
+    r2.className = "status " + (d.r2 ? "on" : "off");
+  }
+
+  /* ===== SETTING (RETAINED) ===== */
+  else if (topic === topicSet) {
+    let s;
+    try { s = JSON.parse(message.toString()); } catch { return; }
+
+    if (s.phMin   !== undefined) phMin.value   = s.phMin;
+    if (s.phMax   !== undefined) phMax.value   = s.phMax;
+    if (s.turbMax !== undefined) turbMax.value = s.turbMax;
+    if (s.h1      !== undefined) h1.value      = s.h1;
+    if (s.h2      !== undefined) h2.value      = s.h2;
+  }
+});
+
+
+
+/* ===== DATA TIMEOUT CHECK ===== */
+setInterval(() => {
+  if (Date.now() - lastData > 4000) {
+    conn.innerText = "terhubung";
+  }
+}, 1000);
+
+/* ===== KIRIM SETTING ===== */
+function kirim() {
+  const payload = JSON.stringify({
+    phMin:   parseFloat(phMin.value),
+    phMax:   parseFloat(phMax.value),
+    turbMax: parseInt(turbMax.value),
+    h1:      parseInt(h1.value),
+    h2:      parseInt(h2.value)
   });
 
-  client.on("message", (topic, message) => {
-    const data = JSON.parse(message.toString());
-    rawEl.textContent = data.raw;
-    turbEl.textContent = data.turbidity;
-    relayEl.textContent = data.relay;
-    phEl.textContent = data.ph ?? "--";
-  });
-
-  client.on("error", () => {
-    statusEl.textContent = "Connection Error ❌";
-  });
+  client.publish(topicSet, payload, { retain: true });
+}
 </script>
+
 
 </body>
 </html>
-
-
