@@ -169,92 +169,115 @@ button:hover {
 </div>
 
 <script>
+// Inisialisasi MQTT
 const client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt", {
-  keepalive: 60,
-  reconnectPeriod: 2000,
-  clean: true
+    keepalive: 60,
+    reconnectPeriod: 2000,
+    clean: true
 });
 
 const topicData = "air/data";
 const topicSet  = "air/setting";
 const LS_KEY    = "air_setting_last";
 
-let lastData = Date.now();
+// Definisi Elemen DOM (Agar lebih stabil)
+const el = {
+    ph: document.getElementById("ph"),
+    turb: document.getElementById("turb"),
+    level: document.getElementById("level"),
+    r1: document.getElementById("r1"),
+    r2: document.getElementById("r2"),
+    conn: document.getElementById("conn"),
+    // Inputs
+    phMin: document.getElementById("phMin"),
+    phMax: document.getElementById("phMax"),
+    turbMax: document.getElementById("turbMax"),
+    h1: document.getElementById("h1"),
+    h2: document.getElementById("h2")
+};
 
-/* ===== LOAD LOCALSTORAGE SAAT AWAL ===== */
-
-const saved = localStorage.getItem("air_setting_last");
+/* ===== LOAD LOCALSTORAGE ===== */
+const saved = localStorage.getItem(LS_KEY);
 if (saved) {
-  try {
-    const s = JSON.parse(saved);
-    phMin.value   = s.phMin   ?? "";
-    phMax.value   = s.phMax   ?? "";
-    turbMax.value = s.turbMax ?? "";
-    h1.value      = s.h1      ?? "";
-    h2.value      = s.h2      ?? "";
-
-  } catch {}
+    try {
+        const s = JSON.parse(saved);
+        el.phMin.value   = s.phMin   ?? "";
+        el.phMax.value   = s.phMax   ?? "";
+        el.turbMax.value = s.turbMax ?? "";
+        el.h1.value      = s.h1      ?? "";
+        el.h2.value      = s.h2      ?? "";
+    } catch (e) { console.error("LS Error", e); }
 }
-
 
 /* ===== MQTT CONNECT ===== */
 client.on("connect", () => {
-  conn.innerText = "🟢 MQTT Connected";
-  client.subscribe(topicData);
-  client.subscribe(topicSet);
+    el.conn.innerText = "🟢 MQTT Connected";
+    el.conn.style.color = "#36e2c2";
+    client.subscribe(topicData);
+    client.subscribe(topicSet);
+});
+
+client.on("offline", () => {
+    el.conn.innerText = "🔴 Terputus dari Broker";
+    el.conn.style.color = "#ff5c5c";
 });
 
 /* ===== MQTT MESSAGE ===== */
 client.on("message", (topic, message) => {
+    let payload;
+    try { 
+        payload = JSON.parse(message.toString()); 
+    } catch (e) { return; }
 
-  /* === DATA SENSOR === */
-  if (topic === topicData) {
-    let d;
-    try { d = JSON.parse(message.toString()); } catch { return; }
+    if (topic === topicData) {
+        el.ph.innerText    = payload.ph?.toFixed(2) ?? "--";
+        el.turb.innerText  = payload.turb ?? "--";
+        el.level.innerText = payload.level ?? "--";
 
-    lastData = Date.now();
-    ph.innerText    = d.ph?.toFixed(2) ?? "--";
-    turb.innerText  = d.turb ?? "--";
-    level.innerText = d.level ?? "--";
+        // Update Status Relay
+        el.r1.innerText = payload.r1 ? "ON" : "OFF";
+        el.r2.innerText = payload.r2 ? "ON" : "OFF";
+        el.r1.className = "status " + (payload.r1 ? "on" : "off");
+        el.r2.className = "status " + (payload.r2 ? "on" : "off");
+    }
 
-    r1.innerText = d.r1 ? "ON" : "OFF";
-    r2.innerText = d.r2 ? "ON" : "OFF";
-    r1.className = "status " + (d.r1 ? "on" : "off");
-    r2.className = "status " + (d.r2 ? "on" : "off");
-  }
-
-  /* === SETTING (RETAINED) === */
-  if (topic === topicSet) {
-    let s;
-    try { s = JSON.parse(message.toString()); } catch { return; }
-
-    if (s.phMin   != null) phMin.value   = s.phMin;
-    if (s.phMax   != null) phMax.value   = s.phMax;
-    if (s.turbMax != null) turbMax.value = s.turbMax;
-    if (s.h1      != null) h1.value      = s.h1;
-    if (s.h2      != null) h2.value      = s.h2;
-
-
-    // 🔥 sinkron ke localStorage
-    localStorage.setItem(LS_KEY, JSON.stringify(s));
-  }
-
-  
-
+    if (topic === topicSet) {
+        // Jika ada perubahan setting dari device lain, update form
+        if (payload.phMin != null)   el.phMin.value   = payload.phMin;
+        if (payload.phMax != null)   el.phMax.value   = payload.phMax;
+        if (payload.turbMax != null) el.turbMax.value = payload.turbMax;
+        if (payload.h1 != null)      el.h1.value      = payload.h1;
+        if (payload.h2 != null)      el.h2.value      = payload.h2;
+        
+        localStorage.setItem(LS_KEY, JSON.stringify(payload));
+    }
 });
 
 /* ===== SIMPAN SETTING ===== */
 function kirim() {
-  const setting = {
-    phMin:   parseFloat(phMin.value),
-    phMax:   parseFloat(phMax.value),
-    turbMax: parseInt(turbMax.value),
-    h1:      parseInt(h1.value),
-    h2:      parseInt(h2.value)
-  };
+    // Validasi: Pastikan tidak ada input kosong
+    if (!el.phMin.value || !el.phMax.value || !el.h1.value || !el.h2.value) {
+        alert("Mohon isi semua parameter!");
+        return;
+    }
 
-  localStorage.setItem(LS_KEY, JSON.stringify(setting));
-  client.publish(topicSet, JSON.stringify(setting), { retain: true });
+    const setting = {
+        phMin:   parseFloat(el.phMin.value),
+        phMax:   parseFloat(el.phMax.value),
+        turbMax: parseInt(el.turbMax.value) || 0,
+        h1:      parseInt(el.h1.value),
+        h2:      parseInt(el.h2.value)
+    };
+
+    // Kirim ke MQTT
+    client.publish(topicSet, JSON.stringify(setting), { retain: true }, (err) => {
+        if (!err) {
+            alert("✅ Pengaturan Berhasil Disimpan!");
+            localStorage.setItem(LS_KEY, JSON.stringify(setting));
+        } else {
+            alert("❌ Gagal mengirim pengaturan.");
+        }
+    });
 }
 </script>
 
