@@ -173,9 +173,10 @@ button:hover {
 const client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt", {
     keepalive: 60,
     reconnectPeriod: 2000,
-    clean: true
+    clean: true,
+    clientId: 'web_client_' + Math.random().toString(16).substr(2, 8) // Tambahkan ini
 });
-
+  
 const topicData = "air/monitoring/data_baru";
 const topicSet  = "air/monitoring/setting";
 const LS_KEY    = "air_setting_last";
