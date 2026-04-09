@@ -180,7 +180,6 @@ const topicData = "air/monitoring/data_baru";
 const topicSet  = "air/monitoring/setting";
 const LS_KEY    = "air_setting_last";
 
-// Definisi Elemen DOM (Agar lebih stabil)
 const el = {
     ph: document.getElementById("ph"),
     turb: document.getElementById("turb"),
@@ -188,7 +187,6 @@ const el = {
     r1: document.getElementById("r1"),
     r2: document.getElementById("r2"),
     conn: document.getElementById("conn"),
-    // Inputs
     phMin: document.getElementById("phMin"),
     phMax: document.getElementById("phMax"),
     turbMax: document.getElementById("turbMax"),
@@ -211,14 +209,14 @@ if (saved) {
 
 /* ===== MQTT CONNECT ===== */
 client.on("connect", () => {
-    el.conn.innerText = "🟢 MQTT Connected";
+    el.conn.innerText = "🟢 Terhubung ke Sistem";
     el.conn.style.color = "#36e2c2";
     client.subscribe(topicData);
     client.subscribe(topicSet);
 });
 
 client.on("offline", () => {
-    el.conn.innerText = "🔴 Terputus dari Broker";
+    el.conn.innerText = "🔴 Alat Tidak Terdeteksi (Offline)";
     el.conn.style.color = "#ff5c5c";
 });
 
@@ -230,38 +228,43 @@ client.on("message", (topic, message) => {
     } catch (e) { return; }
 
     if (topic === topicData) {
-        el.ph.innerText    = payload.ph?.toFixed(2) ?? "--";
+        // PERBAIKAN: Pastikan ph adalah angka sebelum toFixed
+        if (payload.ph !== undefined) {
+            let phNum = parseFloat(payload.ph);
+            el.ph.innerText = !isNaN(phNum) ? phNum.toFixed(2) : "--";
+        }
+        
         el.turb.innerText  = payload.turb ?? "--";
         el.level.innerText = payload.level ?? "--";
 
         // Update Status Relay
-        el.r1.innerText = payload.r1 ? "ON" : "OFF";
-        el.r2.innerText = payload.r2 ? "ON" : "OFF";
-        el.r1.className = "status " + (payload.r1 ? "on" : "off");
-        el.r2.className = "status " + (payload.r2 ? "on" : "off");
+        if (payload.r1 !== undefined) {
+            el.r1.innerText = payload.r1 ? "AKTIF" : "MATI";
+            el.r1.className = "status " + (payload.r1 ? "on" : "off");
+        }
+        if (payload.r2 !== undefined) {
+            el.r2.innerText = payload.r2 ? "AKTIF" : "MATI";
+            el.r2.className = "status " + (payload.r2 ? "on" : "off");
+        }
+        
+        // Log waktu di console untuk debugging
+        console.log("Data diterima:", payload);
     }
 
     if (topic === topicSet) {
-        // Jika ada perubahan setting dari device lain, update form
+        // Update input jika ada perubahan dari alat/HP lain
         if (payload.phMin != null)   el.phMin.value   = payload.phMin;
         if (payload.phMax != null)   el.phMax.value   = payload.phMax;
         if (payload.turbMax != null) el.turbMax.value = payload.turbMax;
         if (payload.h1 != null)      el.h1.value      = payload.h1;
         if (payload.h2 != null)      el.h2.value      = payload.h2;
-        
-        localStorage.setItem(LS_KEY, JSON.stringify(payload));
     }
 });
 
 /* ===== SIMPAN SETTING ===== */
 function kirim() {
-    // Validasi: Pastikan tidak ada input kosong
-    if (!el.phMin.value || !el.phMax.value || !el.h1.value || !el.h2.value) {
-        alert("Mohon isi semua parameter!");
-        return;
-    }
-
-    const setting = {
+    // Validasi angka
+    const data = {
         phMin:   parseFloat(el.phMin.value),
         phMax:   parseFloat(el.phMax.value),
         turbMax: parseInt(el.turbMax.value) || 0,
@@ -269,18 +272,22 @@ function kirim() {
         h2:      parseInt(el.h2.value)
     };
 
-    // Kirim ke MQTT
-    client.publish(topicSet, JSON.stringify(setting), { retain: true }, (err) => {
+    if (isNaN(data.phMin) || isNaN(data.phMax) || isNaN(data.h1) || isNaN(data.h2)) {
+        alert("Harap isi semua parameter dengan benar!");
+        return;
+    }
+
+    // Kirim dengan RETAIN: TRUE agar alat langsung dpt data saat baru dinyalakan
+    client.publish(topicSet, JSON.stringify(data), { qos: 1, retain: true }, (err) => {
         if (!err) {
             alert("✅ Pengaturan Berhasil Disimpan!");
-            localStorage.setItem(LS_KEY, JSON.stringify(setting));
+            localStorage.setItem(LS_KEY, JSON.stringify(data));
         } else {
-            alert("❌ Gagal mengirim pengaturan.");
+            alert("❌ Gagal mengirim: " + err);
         }
     });
 }
 </script>
-
 
 
 </body>
