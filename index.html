@@ -1,296 +1,384 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<title>Dashboard Monitoring Air</title>
+    <meta charset="UTF-8">
+    <title>Dashboard Monitoring Air</title>
 
-<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 
-<style>
-:root {
-  --bg: #071426;
-  --card: #0f1f3d;
-  --accent: #36e2c2;
-  --danger: #ff5c5c;
-  --warning: #f1c40f;
-  --ok: #2ecc71;
-  --text: #eaf2ff;
-}
+    <style>
+        /* 1. VARIABEL WARNA */
+        :root {
+            --bg: #071426;
+            --card: #0f1f3d;
+            --accent: #36e2c2;
+            --danger: #ff5c5c;
+            --warning: #f1c40f;
+            --ok: #2ecc71;
+            --text: #eaf2ff;
+        }
 
-* { box-sizing: border-box; }
+        /* 2. RESET DASAR */
+        * { box-sizing: border-box; }
 
-body {
-  margin: 0;
-  font-family: "Segoe UI", Arial, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-}
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
 
-header {
-  padding: 20px;
-  text-align: center;
-  background: linear-gradient(90deg, #0f2a5f, #0b3d91);
-}
+        /* 3. HEADER & LAYOUT */
+        header {
+            padding: 20px;
+            text-align: center;
+            background: linear-gradient(90deg, #0f2a5f, #0b3d91);
+            border-bottom: 2px solid var(--accent);
+        }
 
-header h1 {
-  margin: 0;
-  color: var(--accent);
-}
+        header h1 {
+            margin: 0;
+            color: var(--accent);
+            text-shadow: 0 0 10px rgba(54, 226, 194, 0.3);
+        }
 
-.container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px,1fr));
-  gap: 20px;
-  padding: 25px;
-}
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 25px;
+        }
 
-.card {
-  background: var(--card);
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.3);
-}
+        /* 4. CARD DESIGN */
+        .card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,.3);
+            transition: transform 0.3s ease;
+        }
 
-.card h2 {
-  margin-top: 0;
-  color: var(--accent);
-  font-size: 20px;
-}
+        .card:hover {
+            transform: translateY(-5px);
+        }
 
-.value {
-  font-size: 32px;
-  font-weight: bold;
-}
+        .card h2 {
+            margin-top: 0;
+            color: var(--accent);
+            font-size: 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 10px;
+        }
 
-.label {
-  opacity: .7;
-}
+        /* 5. VALUES & LABELS */
+        .value {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
 
-.status {
-  font-size: 18px;
-  font-weight: bold;
-  padding: 6px 12px;
-  border-radius: 10px;
-  display: inline-block;
-}
+        .label {
+            opacity: .7;
+            font-size: 14px;
+        }
 
-.on { background: var(--ok); color: #000; }
-.off { background: var(--danger); }
-.warn { background: var(--warning); color: #000; }
+        /* 6. STATUS & BUTTONS */
+        .status {
+            font-size: 14px;
+            font-weight: bold;
+            padding: 6px 15px;
+            border-radius: 20px;
+            display: inline-block;
+            text-transform: uppercase;
+        }
 
-input {
-  width: 100%;
-  padding: 10px;
-  border-radius: 10px;
-  border: none;
-  margin-top: 6px;
-  margin-bottom: 12px;
-  font-size: 16px;
-}
+        .on { background: var(--ok); color: #000; }
+        .off { background: var(--danger); color: #fff; }
 
-button {
-  width: 100%;
-  padding: 12px;
-  border-radius: 12px;
-  border: none;
-  background: var(--accent);
-  color: #000;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-}
+        input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0,0,0,0.2);
+            color: #fff;
+            margin: 5px 0 15px 0;
+        }
 
-button:hover {
-  opacity: .85;
-}
+        button {
+            width: 100%;
+            padding: 15px;
+            border-radius: 12px;
+            border: none;
+            background: var(--accent);
+            color: #000;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
 
-.footer {
-  text-align: center;
-  padding: 15px;
-  opacity: .5;
-}
-</style>
+        button:hover {
+            filter: brightness(1.2);
+            box-shadow: 0 0 15px var(--accent);
+        }
+
+        /* 7. STYLE TABEL RIWAYAT */
+        .card-wide {
+            grid-column: 1 / -1; 
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        th {
+            background: var(--accent);
+            color: #000;
+            font-size: 14px;
+        }
+
+        tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .log-on { color: var(--ok); font-weight: bold; }
+        .log-off { opacity: 0.5; }
+
+        /* 8. FOOTER */
+        .footer {
+            text-align: center;
+            padding: 30px;
+            opacity: .5;
+            font-size: 12px;
+        }
+    </style>
 </head>
 
 <body>
 
 <header>
-  <h1>🌊 Dashboard Monitoring Kualitas Air</h1>
-  <p id="conn">Menghubungkan MQTT...</p>
+    <h1>🌊 Dashboard Monitoring Kualitas Air</h1>
+    <p id="conn">Menghubungkan MQTT...</p>
 </header>
 
 <div class="container">
 
-  <!-- MONITORING -->
-  <div class="card">
-    <h2>📊 Data Sensor</h2>
-    <p class="label">pH Air</p>
-    <div class="value" id="ph">--</div>
+    <div class="card">
+        <h2>📊 Data Sensor (Real-Time)</h2>
+        <p class="label">pH Air</p>
+        <div class="value" id="ph">--</div>
 
-    <p class="label">Kekeruhan (NTU)</p>
-    <div class="value" id="turb">--</div>
+        <p class="label">Kekeruhan (NTU)</p>
+        <div class="value" id="turb">--</div>
 
-    <p class="label">Ketinggian Air (cm)</p>
-    <div class="value" id="level">--</div>
-  </div>
+        <p class="label">Ketinggian Air (cm)</p>
+        <div class="value" id="level">--</div>
+    </div>
 
-  <!-- STATUS -->
-  <div class="card">
-    <h2>⚙ Status Sistem</h2>
-    <p>Relay 1: <span id="r1" class="status off">OFF</span></p>
-    <p>Relay 2: <span id="r2" class="status off">OFF</span></p>
-  </div>
+    <div class="card">
+        <h2>⚙ Status Sistem</h2>
+        <p>Relay 1: <span id="r1" class="status off">OFF</span></p>
+        <p>Relay 2: <span id="r2" class="status off">OFF</span></p>
+    </div>
 
-  <!-- SETTING -->
-  <div class="card">
-    <h2>🧪 Batas Kualitas Air</h2>
-    pH Minimum
-    <input id="phMin" type="number" step="0.1">
-    pH Maksimum
-    <input id="phMax" type="number" step="0.1">
-    Kekeruhan Maks (NTU)
-    <input id="turbMax" type="number">
-  </div>
+    <div class="card">
+        <h2>🧪 Batas Kualitas Air</h2>
+        pH Minimum
+        <input id="phMin" type="number" step="0.1" value="6.5">
+        pH Maksimum
+        <input id="phMax" type="number" step="0.1" value="8.5">
+        Kekeruhan Maks (NTU)
+        <input id="turbMax" type="number" value="50">
+    </div>
 
-  <div class="card">
-    <h2>📏 Batas Ketinggian Air</h2>
-    H1 (cm – relay 1 off, relay 2 on)
-    <input id="h1" type="number">
-    H2 (cm – relay 2 off)
-    <input id="h2" type="number">
+    <div class="card">
+        <h2>📏 Batas Ketinggian Air</h2>
+        H1 (Batas Bawah - cm)
+        <input id="h1" type="number" value="10">
+        H2 (Batas Atas - cm)
+        <input id="h2" type="number" value="50">
 
-    <button onclick="kirim()">SIMPAN PENGATURAN</button>
-  </div>
+        <button onclick="kirim()">SIMPAN PENGATURAN</button>
+    </div>
+
+    <div class="card card-wide">
+        <h2>📜 Riwayat Aktivitas (Log 10 Menit)</h2>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tanggal & Waktu</th>
+                        <th>pH</th>
+                        <th>Level (cm)</th>
+                        <th>Relay 1</th>
+                        <th>Relay 2</th>
+                    </tr>
+                </thead>
+                <tbody id="historyBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
 
 </div>
 
 <div class="footer">
-  IoT Water Monitoring © 2026
+    IoT Water Monitoring © 2026
 </div>
 
 <script>
-// Inisialisasi MQTT
-const client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt", {
-    keepalive: 60,
-    reconnectPeriod: 2000,
-    clean: true,
-    clientId: 'web_client_' + Math.random().toString(16).substr(2, 8) // Tambahkan ini
-});
-  
-const topicData = "air/monitoring/data_baru";
-const topicSet  = "air/monitoring/setting";
-const LS_KEY    = "air_setting_last";
+    /* ===== KONFIGURASI MQTT ===== */
+    const client = mqtt.connect("wss://broker.hivemq.com:8884/mqtt", {
+        keepalive: 60,
+        reconnectPeriod: 2000,
+        clean: true,
+        clientId: 'web_client_' + Math.random().toString(16).substr(2, 8)
+    });
 
-const el = {
-    ph: document.getElementById("ph"),
-    turb: document.getElementById("turb"),
-    level: document.getElementById("level"),
-    r1: document.getElementById("r1"),
-    r2: document.getElementById("r2"),
-    conn: document.getElementById("conn"),
-    phMin: document.getElementById("phMin"),
-    phMax: document.getElementById("phMax"),
-    turbMax: document.getElementById("turbMax"),
-    h1: document.getElementById("h1"),
-    h2: document.getElementById("h2")
-};
+    const topicData = "air/monitoring/data_baru";
+    const topicSet  = "air/monitoring/setting";
+    const LS_KEY    = "air_setting_last";
 
-/* ===== LOAD LOCALSTORAGE ===== */
-const saved = localStorage.getItem(LS_KEY);
-if (saved) {
-    try {
-        const s = JSON.parse(saved);
-        el.phMin.value   = s.phMin   ?? "";
-        el.phMax.value   = s.phMax   ?? "";
-        el.turbMax.value = s.turbMax ?? "";
-        el.h1.value      = s.h1      ?? "";
-        el.h2.value      = s.h2      ?? "";
-    } catch (e) { console.error("LS Error", e); }
-}
-
-/* ===== MQTT CONNECT ===== */
-client.on("connect", () => {
-    el.conn.innerText = "🟢 Terhubung ke Sistem";
-    el.conn.style.color = "#36e2c2";
-    client.subscribe(topicData);
-    client.subscribe(topicSet);
-});
-
-client.on("offline", () => {
-    el.conn.innerText = "🔴 Alat Tidak Terdeteksi (Offline)";
-    el.conn.style.color = "#ff5c5c";
-});
-
-/* ===== MQTT MESSAGE ===== */
-client.on("message", (topic, message) => {
-    let payload;
-    try { 
-        payload = JSON.parse(message.toString()); 
-    } catch (e) { return; }
-
-    if (topic === topicData) {
-        // PERBAIKAN: Pastikan ph adalah angka sebelum toFixed
-        if (payload.ph !== undefined) {
-            let phNum = parseFloat(payload.ph);
-            el.ph.innerText = !isNaN(phNum) ? phNum.toFixed(2) : "--";
-        }
-        
-        el.turb.innerText  = payload.turb ?? "--";
-        el.level.innerText = payload.level ?? "--";
-
-        // Update Status Relay
-        if (payload.r1 !== undefined) {
-            el.r1.innerText = payload.r1 ? "AKTIF" : "MATI";
-            el.r1.className = "status " + (payload.r1 ? "on" : "off");
-        }
-        if (payload.r2 !== undefined) {
-            el.r2.innerText = payload.r2 ? "AKTIF" : "MATI";
-            el.r2.className = "status " + (payload.r2 ? "on" : "off");
-        }
-        
-        // Log waktu di console untuk debugging
-        console.log("Data diterima:", payload);
-    }
-
-    if (topic === topicSet) {
-        // Update input jika ada perubahan dari alat/HP lain
-        if (payload.phMin != null)   el.phMin.value   = payload.phMin;
-        if (payload.phMax != null)   el.phMax.value   = payload.phMax;
-        if (payload.turbMax != null) el.turbMax.value = payload.turbMax;
-        if (payload.h1 != null)      el.h1.value      = payload.h1;
-        if (payload.h2 != null)      el.h2.value      = payload.h2;
-    }
-});
-
-/* ===== SIMPAN SETTING ===== */
-function kirim() {
-    // Validasi angka
-    const data = {
-        phMin:   parseFloat(el.phMin.value),
-        phMax:   parseFloat(el.phMax.value),
-        turbMax: parseInt(el.turbMax.value) || 0,
-        h1:      parseInt(el.h1.value),
-        h2:      parseInt(el.h2.value)
+    const el = {
+        ph: document.getElementById("ph"),
+        turb: document.getElementById("turb"),
+        level: document.getElementById("level"),
+        r1: document.getElementById("r1"),
+        r2: document.getElementById("r2"),
+        conn: document.getElementById("conn"),
+        phMin: document.getElementById("phMin"),
+        phMax: document.getElementById("phMax"),
+        turbMax: document.getElementById("turbMax"),
+        h1: document.getElementById("h1"),
+        h2: document.getElementById("h2"),
+        history: document.getElementById("historyBody")
     };
 
-    if (isNaN(data.phMin) || isNaN(data.phMax) || isNaN(data.h1) || isNaN(data.h2)) {
-        alert("Harap isi semua parameter dengan benar!");
-        return;
+    /* ===== LOGIKA JEDA TABEL ===== */
+    let terakhirSimpanTabel = 0; 
+    const JEDA_SIMPAN = 10 * 60 * 1000; // 10 menit
+    const MAX_LOGS = 20;
+
+    /* ===== LOAD SETTING TERSIMPAN ===== */
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved) {
+        try {
+            const s = JSON.parse(saved);
+            el.phMin.value   = s.phMin;
+            el.phMax.value   = s.phMax;
+            el.turbMax.value = s.turbMax;
+            el.h1.value      = s.h1;
+            el.h2.value      = s.h2;
+        } catch (e) { console.error("Gagal load setting", e); }
     }
 
-    // Kirim dengan RETAIN: TRUE agar alat langsung dpt data saat baru dinyalakan
-    client.publish(topicSet, JSON.stringify(data), { qos: 1, retain: true }, (err) => {
-        if (!err) {
-            alert("✅ Pengaturan Berhasil Disimpan!");
-            localStorage.setItem(LS_KEY, JSON.stringify(data));
-        } else {
-            alert("❌ Gagal mengirim: " + err);
+    /* ===== EVENT: MQTT TERHUBUNG ===== */
+    client.on("connect", () => {
+        el.conn.innerText = "🟢 Terhubung ke Sistem";
+        el.conn.style.color = "#36e2c2";
+        client.subscribe(topicData);
+        client.subscribe(topicSet);
+    });
+
+    client.on("offline", () => {
+        el.conn.innerText = "🔴 Alat Tidak Terdeteksi (Offline)";
+        el.conn.style.color = "#ff5c5c";
+    });
+
+    /* ===== EVENT: TERIMA PESAN ===== */
+    client.on("message", (topic, message) => {
+        let payload;
+        try { 
+            payload = JSON.parse(message.toString()); 
+        } catch (e) { return; }
+
+        if (topic === topicData) {
+            // 1. Update Tampilan Card (Real-Time)
+            let phVal = parseFloat(payload.ph);
+            el.ph.innerText = !isNaN(phVal) ? phVal.toFixed(2) : "--";
+            el.turb.innerText = payload.turb ?? "--";
+            el.level.innerText = payload.level ?? "--";
+
+            if (payload.r1 !== undefined) {
+                el.r1.innerText = payload.r1 ? "AKTIF" : "MATI";
+                el.r1.className = "status " + (payload.r1 ? "on" : "off");
+            }
+            if (payload.r2 !== undefined) {
+                el.r2.innerText = payload.r2 ? "AKTIF" : "MATI";
+                el.r2.className = "status " + (payload.r2 ? "on" : "off");
+            }
+
+            // 2. Filter Riwayat Tabel (Hanya 10 Menit Sekali)
+            const sekarang = Date.now();
+            if (sekarang - terakhirSimpanTabel >= JEDA_SIMPAN) {
+                tambahRiwayat(phVal, payload.level, payload.r1, payload.r2);
+                terakhirSimpanTabel = sekarang;
+            }
+        }
+
+        if (topic === topicSet) {
+            if (payload.phMin != null)   el.phMin.value   = payload.phMin;
+            if (payload.phMax != null)   el.phMax.value   = payload.phMax;
+            if (payload.h1 != null)      el.h1.value      = payload.h1;
+            if (payload.h2 != null)      el.h2.value      = payload.h2;
         }
     });
-}
-</script>
 
+    function tambahRiwayat(ph, level, r1, r2) {
+        const now = new Date();
+        const timeStr = now.toLocaleDateString('id-ID') + " " + now.toLocaleTimeString('id-ID');
+
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td>${timeStr}</td>
+            <td>${!isNaN(ph) ? ph.toFixed(2) : "--"}</td>
+            <td>${level ?? "--"}</td>
+            <td class="${r1 ? 'log-on' : 'log-off'}">${r1 ? 'AKTIF' : 'MATI'}</td>
+            <td class="${r2 ? 'log-on' : 'log-off'}">${r2 ? 'AKTIF' : 'MATI'}</td>
+        `;
+
+        el.history.insertBefore(row, el.history.firstChild);
+        if (el.history.children.length > MAX_LOGS) {
+            el.history.removeChild(el.history.lastChild);
+        }
+    }
+
+    function kirim() {
+        const data = {
+            phMin:   parseFloat(el.phMin.value),
+            phMax:   parseFloat(el.phMax.value),
+            turbMax: parseInt(el.turbMax.value) || 0,
+            h1:      parseInt(el.h1.value),
+            h2:      parseInt(el.h2.value)
+        };
+
+        if (isNaN(data.phMin) || isNaN(data.phMax) || isNaN(data.h1) || isNaN(data.h2)) {
+            alert("Mohon isi semua parameter angka!");
+            return;
+        }
+
+        client.publish(topicSet, JSON.stringify(data), { qos: 1, retain: true }, (err) => {
+            if (!err) {
+                alert("✅ Pengaturan Berhasil Dikirim!");
+                localStorage.setItem(LS_KEY, JSON.stringify(data));
+            } else {
+                alert("❌ Gagal mengirim: " + err);
+            }
+        });
+    }
+</script>
 
 </body>
 </html>
-
