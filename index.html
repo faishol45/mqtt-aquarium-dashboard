@@ -221,6 +221,7 @@
                     <tr>
                         <th>Tanggal & Waktu</th>
                         <th>pH</th>
+                        <th>Kekeruhan</th>
                         <th>Level (cm)</th>
                         <th>Relay 1</th>
                         <th>Relay 2</th>
@@ -307,8 +308,10 @@
         if (topic === topicData) {
             // 1. Update Tampilan Card (Real-Time)
             let phVal = parseFloat(payload.ph);
+            let turbVal = parseInt(payload.turb);
+            
             el.ph.innerText = !isNaN(phVal) ? phVal.toFixed(2) : "--";
-            el.turb.innerText = payload.turb ?? "--";
+            el.turb.innerText = !isNaN(turbVal) ? turbVal : "--";
             el.level.innerText = payload.level ?? "--";
 
             if (payload.r1 !== undefined) {
@@ -323,7 +326,7 @@
             // 2. Filter Riwayat Tabel (Hanya 10 Menit Sekali)
             const sekarang = Date.now();
             if (sekarang - terakhirSimpanTabel >= JEDA_SIMPAN) {
-                tambahRiwayat(phVal, payload.level, payload.r1, payload.r2);
+                tambahRiwayat(phVal, turbVal, payload.level, payload.r1, payload.r2);
                 terakhirSimpanTabel = sekarang;
             }
         }
@@ -331,6 +334,7 @@
         if (topic === topicSet) {
             if (payload.phMin != null)   el.phMin.value   = payload.phMin;
             if (payload.phMax != null)   el.phMax.value   = payload.phMax;
+            if (payload.turbMax != null) el.turbMax.value = payload.turbMax;
             if (payload.h1 != null)      el.h1.value      = payload.h1;
             if (payload.h2 != null)      el.h2.value      = payload.h2;
         }
@@ -344,6 +348,7 @@
         row.innerHTML = `
             <td>${timeStr}</td>
             <td>${!isNaN(ph) ? ph.toFixed(2) : "--"}</td>
+            <td>${turb ?? "--"}</td>
             <td>${level ?? "--"}</td>
             <td class="${r1 ? 'log-on' : 'log-off'}">${r1 ? 'AKTIF' : 'MATI'}</td>
             <td class="${r2 ? 'log-on' : 'log-off'}">${r2 ? 'AKTIF' : 'MATI'}</td>
@@ -364,7 +369,7 @@
             h2:      parseInt(el.h2.value)
         };
 
-        if (isNaN(data.phMin) || isNaN(data.phMax) || isNaN(data.h1) || isNaN(data.h2)) {
+        if (isNaN(data.phMin) || isNaN(data.phMax) || isNaN(data.h1) || isNaN(data.h2) || isNaN(data.turbMax)) {
             alert("Mohon isi semua parameter angka!");
             return;
         }
