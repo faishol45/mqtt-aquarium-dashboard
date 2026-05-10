@@ -309,10 +309,11 @@
             // 1. Update Tampilan Card (Real-Time)
             let phVal = parseFloat(payload.ph);
             let turbVal = parseInt(payload.turb);
+            let levelVal = parseInt(payload.level);
             
             el.ph.innerText = !isNaN(phVal) ? phVal.toFixed(2) : "--";
             el.turb.innerText = !isNaN(turbVal) ? turbVal : "--";
-            el.level.innerText = payload.level ?? "--";
+            el.level.innerText = !isNaN(levelVal) ? levelVal : "--";
 
             if (payload.r1 !== undefined) {
                 el.r1.innerText = payload.r1 ? "AKTIF" : "MATI";
@@ -326,7 +327,7 @@
             // 2. Filter Riwayat Tabel (Hanya 10 Menit Sekali)
             const sekarang = Date.now();
             if (sekarang - terakhirSimpanTabel >= JEDA_SIMPAN) {
-                tambahRiwayat(phVal, turbVal, payload.level, payload.r1, payload.r2);
+                tambahRiwayat(phVal, turbVal, levelVal, payload.r1, payload.r2);
                 terakhirSimpanTabel = sekarang;
             }
         }
@@ -340,7 +341,7 @@
         }
     });
 
-    function tambahRiwayat(ph, level, r1, r2) {
+    function tambahRiwayat(ph, turb, level, r1, r2) {
         const now = new Date();
         const timeStr = now.toLocaleDateString('id-ID') + " " + now.toLocaleTimeString('id-ID');
 
@@ -348,8 +349,8 @@
         row.innerHTML = `
             <td>${timeStr}</td>
             <td>${!isNaN(ph) ? ph.toFixed(2) : "--"}</td>
-            <td>${turb ?? "--"}</td>
-            <td>${level ?? "--"}</td>
+            <td>${turb !== undefined ? turb : "--"}</td> 
+            <td>${level !== undefined && !isNaN(level) ? level : "--"}</td>
             <td class="${r1 ? 'log-on' : 'log-off'}">${r1 ? 'AKTIF' : 'MATI'}</td>
             <td class="${r2 ? 'log-on' : 'log-off'}">${r2 ? 'AKTIF' : 'MATI'}</td>
         `;
